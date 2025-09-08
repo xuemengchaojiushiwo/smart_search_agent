@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI API 管理界面</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+        .content {
+            padding: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .api-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        .api-card.active {
+            border-color: #4CAF50;
+            background: #f1f8e9;
+        }
+        .api-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .api-info {
+            flex: 1;
+        }
+        .api-name {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #333;
+        }
+        .api-status {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        .api-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+        .btn-success {
+            background: #4CAF50;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #45a049;
+        }
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+        .btn-warning:hover {
+            background: #e68900;
+        }
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #da190b;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-online {
+            background: #4CAF50;
+        }
+        .status-offline {
+            background: #f44336;
+        }
+        .status-unknown {
+            background: #ff9800;
+        }
+        .test-result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .test-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .test-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .chat-section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .chat-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .chat-response {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+            margin-top: 10px;
+            white-space: pre-wrap;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI API 管理界面</h1>
+            <p>管理和切换不同的AI API服务</p>
+        </div>
+        
+        <div class="content">
+            <!-- API状态概览 -->
+            <div class="section">
+                <h2>📊 API状态概览</h2>
+                <div id="api-overview">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        正在加载API状态...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- API管理 -->
+            <div class="section">
+                <h2>⚙️ API管理</h2>
+                <div id="api-management">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        正在加载API列表...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 聊天测试 -->
+            <div class="chat-section">
+                <h2>💬 聊天测试</h2>
+                <div>
+                    <input type="text" id="chat-input" class="chat-input" placeholder="输入消息进行测试..." />
+                    <button onclick="sendChat()" class="btn btn-primary">发送</button>
+                </div>
+                <div id="chat-response" class="chat-response" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadApiStatus();
+            loadApiManagement();
+        });
+        
+        // 加载API状态
+        async function loadApiStatus() {
+            const overviewDiv = document.getElementById('api-overview');
+            overviewDiv.innerHTML = '<div class="loading"><div class="spinner"></div>正在加载API状态...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/status`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const apiInfo = data.data;
+                    overviewDiv.innerHTML = `
+                        <div class="api-card active">
+                            <div class="api-info">
+                                <div class="api-name">
+                                    <span class="status-indicator ${apiInfo.current_api === 'geekai' ? 'status-online' : 'status-online'}"></span>
+                                    当前使用: ${apiInfo.current_api === 'geekai' ? '极客智坊' : '自定义AI'}
+                                </div>
+                                <div class="api-status">
+                                    可用API: ${apiInfo.available_apis.join(', ')} | 
+                                    极客智坊: ${apiInfo.geekai_configured ? '已配置' : '未配置'} | 
+                                    自定义AI: ${apiInfo.custom_configured ? '已配置' : '未配置'}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    overviewDiv.innerHTML = `<div class="test-error">加载失败: ${data.error}</div>`;
+                }
+            } catch (error) {
+                overviewDiv.innerHTML = `<div class="test-error">加载失败: ${error.message}</div>`;
+            }
+        }
+        
+        // 加载API管理
+        async function loadApiManagement() {
+            const managementDiv = document.getElementById('api-management');
+            managementDiv.innerHTML = '<div class="loading"><div class="spinner"></div>正在加载API列表...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/status`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const apiInfo = data.data;
+                    let html = '';
+                    
+                    // 极客智坊API
+                    html += `
+                        <div class="api-card ${apiInfo.current_api === 'geekai' ? 'active' : ''}">
+                            <div class="api-info">
+                                <div class="api-name">极客智坊 API</div>
+                                <div class="api-status">
+                                    状态: ${apiInfo.geekai_available ? '可用' : '不可用'} | 
+                                    模型: ${apiInfo.geekai_models.chat} / ${apiInfo.geekai_models.embedding}
+                                </div>
+                            </div>
+                            <div class="api-actions">
+                                <button onclick="testApi('geekai')" class="btn btn-warning">测试</button>
+                                ${apiInfo.current_api !== 'geekai' && apiInfo.geekai_available ? 
+                                    `<button onclick="switchApi('geekai')" class="btn btn-success">切换</button>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    
+                    // 自定义AI API
+                    html += `
+                        <div class="api-card ${apiInfo.current_api === 'custom' ? 'active' : ''}">
+                            <div class="api-info">
+                                <div class="api-name">自定义AI API</div>
+                                <div class="api-status">
+                                    状态: ${apiInfo.custom_available ? '可用' : '不可用'} | 
+                                    模型: ${apiInfo.custom_models.chat} / ${apiInfo.custom_models.embedding}
+                                </div>
+                            </div>
+                            <div class="api-actions">
+                                <button onclick="testApi('custom')" class="btn btn-warning">测试</button>
+                                ${apiInfo.current_api !== 'custom' && apiInfo.custom_available ? 
+                                    `<button onclick="switchApi('custom')" class="btn btn-success">切换</button>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    
+                    managementDiv.innerHTML = html;
+                } else {
+                    managementDiv.innerHTML = `<div class="test-error">加载失败: ${data.error}</div>`;
+                }
+            } catch (error) {
+                managementDiv.innerHTML = `<div class="test-error">加载失败: ${error.message}</div>`;
+            }
+        }
+        
+        // 切换API
+        async function switchApi(apiName) {
+            try {
+                const response = await fetch(`${API_BASE}/api/switch`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ api_name: apiName })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`已成功切换到 ${apiName} API`);
+                    loadApiStatus();
+                    loadApiManagement();
+                } else {
+                    alert(`切换失败: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`切换失败: ${error.message}`);
+            }
+        }
+        
+        // 测试API
+        async function testApi(apiName) {
+            try {
+                const response = await fetch(`${API_BASE}/api/test`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ api_name: apiName })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`API ${apiName} 测试成功!\n\n聊天测试: ${data.chat_test.response}\n向量化测试: ${data.embedding_test.success ? '成功' : '失败'} (维度: ${data.embedding_test.dimension})`);
+                } else {
+                    alert(`API ${apiName} 测试失败: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`测试失败: ${error.message}`);
+            }
+        }
+        
+        // 发送聊天消息
+        async function sendChat() {
+            const input = document.getElementById('chat-input');
+            const responseDiv = document.getElementById('chat-response');
+            const message = input.value.trim();
+            
+            if (!message) {
+                alert('请输入消息');
+                return;
+            }
+            
+            responseDiv.style.display = 'none';
+            responseDiv.innerHTML = '<div class="loading"><div class="spinner"></div>正在生成回复...</div>';
+            responseDiv.style.display = 'block';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    responseDiv.innerHTML = `
+                        <strong>消息:</strong> ${data.data.message}<br>
+                        <strong>回复:</strong> ${data.data.response}<br>
+                        <strong>API:</strong> ${data.data.api}
+                    `;
+                } else {
+                    responseDiv.innerHTML = `<div class="test-error">聊天失败: ${data.error}</div>`;
+                }
+            } catch (error) {
+                responseDiv.innerHTML = `<div class="test-error">聊天失败: ${error.message}</div>`;
+            }
+        }
+        
+        // 回车发送消息
+        document.getElementById('chat-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendChat();
+            }
+        });
+    </script>
+</body>
+</html>

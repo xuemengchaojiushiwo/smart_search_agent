@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文档切分与定位效果查看器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .file-upload-section {
+            background: #f8f9fa;
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload-section:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .file-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .chunking-results {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .results-header {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-top: 4px solid #667eea;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .chunks-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chunk-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .chunk-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+
+        .chunk-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .chunk-index {
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .chunk-meta {
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        .chunk-content {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .chunk-positions {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #ff9800;
+        }
+
+        .position-item {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+            font-size: 0.85em;
+        }
+
+        .position-text {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .position-coords {
+            color: #666;
+            font-family: 'Courier New', monospace;
+        }
+
+        .document-preview {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .preview-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .page-selector {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .preview-canvas {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin: 0 auto;
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #f44336;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .success-message {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #4caf50;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .file-type-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .badge-docx { background: #e3f2fd; color: #1976d2; }
+        .badge-xlsx { background: #e8f5e8; color: #388e3c; }
+        .badge-pptx { background: #fff3e0; color: #f57c00; }
+        .badge-txt { background: #f3e5f5; color: #7b1fa2; }
+
+        .chunk-highlight {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+        }
+
+        .search-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .search-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .search-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .search-summary {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .search-summary h3 {
+            color: #2e7d32;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #4caf50;
+            padding-bottom: 10px;
+        }
+
+        .search-results-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .search-result-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .search-result-item:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-1px);
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .result-index {
+            background: #4caf50;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .result-score {
+            color: #666;
+            font-size: 0.8em;
+            font-family: 'Courier New', monospace;
+        }
+
+        .result-content {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            line-height: 1.4;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .result-content mark {
+            background: #fff3cd;
+            color: #856404;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .result-meta {
+            color: #666;
+            font-size: 0.8em;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 文档切分与定位效果查看器</h1>
+            <p>可视化展示不同文件类型的智能切分和精确定位效果</p>
+        </div>
+        
+        <div class="content">
+            <!-- 文件上传区域 -->
+            <div class="file-upload-section">
+                <h3>选择要分析的文档</h3>
+                <p>支持 Word、Excel、PowerPoint、TXT 等格式</p>
+                <input type="file" id="fileInput" class="file-input" accept=".docx,.xlsx,.pptx,.txt,.doc,.xls,.ppt">
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    📁 选择文件
+                </button>
+                <div id="fileInfo" class="file-info" style="display: none;"></div>
+            </div>
+
+            <!-- 搜索功能 -->
+            <div class="search-section">
+                <h3>🔍 在切分结果中搜索</h3>
+                <input type="text" id="searchInput" class="search-input" placeholder="输入关键词搜索切分内容...">
+                <button class="search-btn" onclick="searchInChunks()">搜索</button>
+            </div>
+
+            <!-- 切分结果展示 -->
+            <div id="chunkingResults" class="chunking-results">
+                <div class="results-header">
+                    <h2>📊 文档切分结果</h2>
+                    <p>智能分析文档结构，生成语义化的文本块，并保留精确定位信息</p>
+                </div>
+
+                <!-- 统计信息 -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalChunks">0</div>
+                        <div class="stat-label">总切分块数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="avgChunkSize">0</div>
+                        <div class="stat-label">平均块大小</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalPositions">0</div>
+                        <div class="stat-label">定位信息数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="documentType">-</div>
+                        <div class="stat-label">文档类型</div>
+                    </div>
+                </div>
+
+                <!-- 切分块展示 -->
+                <div class="chunks-container" id="chunksContainer"></div>
+
+                <!-- 文档预览 -->
+                <div class="document-preview">
+                    <div class="preview-header">
+                        <h3>📖 文档预览</h3>
+                        <div class="preview-controls">
+                            <label>页码: </label>
+                            <select id="pageSelector" class="page-selector">
+                                <option value="1">第1页</option>
+                            </select>
+                        </div>
+                    </div>
+                    <canvas id="previewCanvas" class="preview-canvas" width="800" height="600"></canvas>
+                </div>
+            </div>
+
+            <!-- 加载状态 -->
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>正在处理文档，请稍候...</p>
+            </div>
+
+            <!-- 错误消息 -->
+            <div id="errorMessage" class="error-message"></div>
+
+            <!-- 成功消息 -->
+            <div id="successMessage" class="success-message"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentChunks = [];
+        let currentFile = null;
+
+        // 文件选择处理
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                currentFile = file;
+                showFileInfo(file);
+                processDocument(file);
+            }
+        });
+
+        // 显示文件信息
+        function showFileInfo(file) {
+            const fileInfo = document.getElementById('fileInfo');
+            const fileType = getFileType(file.name);
+            const badgeClass = getBadgeClass(fileType);
+            
+            fileInfo.innerHTML = `
+                <strong>📄 文件名:</strong> ${file.name}<br>
+                <strong>📊 文件大小:</strong> ${(file.size / 1024).toFixed(2)} KB<br>
+                <strong>🔖 文件类型:</strong> <span class="file-type-badge ${badgeClass}">${fileType}</span>
+            `;
+            fileInfo.style.display = 'block';
+        }
+
+        // 获取文件类型
+        function getFileType(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const typeMap = {
+                'docx': 'Word文档',
+                'doc': 'Word文档',
+                'xlsx': 'Excel表格',
+                'xls': 'Excel表格',
+                'pptx': 'PowerPoint演示',
+                'ppt': 'PowerPoint演示',
+                'txt': '文本文档',
+                'pdf': 'PDF文档'
+            };
+            return typeMap[ext] || '未知类型';
+        }
+
+        // 获取徽章样式类
+        function getBadgeClass(fileType) {
+            const classMap = {
+                'Word文档': 'badge-docx',
+                'Excel表格': 'badge-xlsx',
+                'PowerPoint演示': 'badge-pptx',
+                '文本文档': 'badge-txt'
+            };
+            return classMap[fileType] || '';
+        }
+
+        // 处理文档
+        async function processDocument(file) {
+            showLoading(true);
+            hideMessages();
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('knowledge_id', '1');
+                formData.append('knowledge_name', file.name);
+
+                const response = await fetch('http://localhost:8050/api/document/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    showSuccessMessage(`文档处理成功！生成了 ${result.chunks_count} 个切分块`);
+                    
+                    // 等待一段时间后获取真实的切分结果
+                    setTimeout(async () => {
+                        await getRealChunkingResults(1);
+                    }, 2000);
+                } else {
+                    const error = await response.json();
+                    showErrorMessage(`文档处理失败: ${error.detail}`);
+                }
+            } catch (error) {
+                showErrorMessage(`处理过程中出现错误: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 获取真实的切分结果
+        async function getRealChunkingResults(knowledgeId) {
+            try {
+                showLoading(true);
+                
+                // 获取切分结果
+                const chunksResponse = await fetch(`http://localhost:8050/api/chunks/${knowledgeId}`);
+                if (!chunksResponse.ok) {
+                    throw new Error('获取切分结果失败');
+                }
+                
+                const chunksData = await chunksResponse.json();
+                if (!chunksData.success) {
+                    throw new Error(chunksData.error || '获取切分结果失败');
+                }
+                
+                if (chunksData.data.length === 0) {
+                    showErrorMessage('未找到切分结果，请先上传并处理文档');
+                    return
+                }
+                
+                // 获取统计信息
+                const statsResponse = await fetch(`http://localhost:8050/api/chunks/stats/${knowledgeId}`);
+                let stats = null;
+                if (statsResponse.ok) {
+                    const statsData = await statsResponse.json();
+                    if (statsData.success) {
+                        stats = statsData.data;
+                    }
+                }
+                
+                // 显示真实结果
+                displayRealChunkingResults(chunksData.data, stats);
+                
+            } catch (error) {
+                showErrorMessage(`获取切分结果失败: ${error.message}`);
+                // 如果获取真实结果失败，回退到模拟结果
+                await simulateChunkingResults(currentFile);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 显示真实的切分结果
+        function displayRealChunkingResults(chunks, stats) {
+            const resultsDiv = document.getElementById('chunkingResults');
+            const statsDiv = document.getElementById('totalChunks');
+            const avgSizeDiv = document.getElementById('avgChunkSize');
+            const positionsDiv = document.getElementById('totalPositions');
+            const typeDiv = document.getElementById('documentType');
+            const containerDiv = document.getElementById('chunksContainer');
+
+            // 更新统计信息
+            if (stats) {
+                statsDiv.textContent = stats.total_chunks;
+                avgSizeDiv.textContent = stats.avg_chunk_size;
+                positionsDiv.textContent = stats.total_positions;
+                typeDiv.textContent = stats.document_types.join(', ') || '未知';
+            } else {
+                // 如果没有统计信息，手动计算
+                statsDiv.textContent = chunks.length;
+                const avgSize = Math.round(chunks.reduce((sum, chunk) => sum + chunk.content.length, 0) / chunks.length);
+                avgSizeDiv.textContent = avgSize;
+                
+                const totalPositions = chunks.reduce((sum, chunk) => sum + chunk.positions.length, 0);
+                positionsDiv.textContent = totalPositions;
+                
+                const docTypes = [...new Set(chunks.map(chunk => chunk.metadata.document_type))];
+                typeDiv.textContent = docTypes.join(', ') || '未知';
+            }
+
+            // 生成切分块展示
+            containerDiv.innerHTML = chunks.map(chunk => `
+                <div class="chunk-card" data-chunk-index="${chunk.index}">
+                    <div class="chunk-header">
+                        <span class="chunk-index">块 ${chunk.index}</span>
+                        <span class="chunk-meta">
+                            第${chunk.metadata.page_num}页 | 
+                            ${chunk.metadata.document_type}
+                            ${chunk.metadata.sheet_name ? `| ${chunk.metadata.sheet_name}` : ''}
+                        </span>
+                    </div>
+                    <div class="chunk-content">${chunk.content}</div>
+                    <div class="chunk-positions">
+                        <strong>📍 定位信息 (${chunk.positions.length}个):</strong>
+                        ${chunk.positions.map(pos => `
+                            <div class="position-item">
+                                <div class="position-text">${pos.text || '未知文本'}</div>
+                                <div class="position-coords">
+                                    ${formatRealPositionInfo(pos)}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            resultsDiv.style.display = 'block';
+            showSuccessMessage(`成功加载 ${chunks.length} 个切分块`);
+        }
+
+        // 格式化真实的位置信息
+        function formatRealPositionInfo(pos) {
+            if (pos.bbox && pos.bbox.length === 4) {
+                return `坐标: [${pos.bbox.join(', ')}]`;
+            } else if (pos.line_no) {
+                return `行号: ${pos.line_no}, 字符范围: ${pos.char_start || 0}-${pos.char_end || 0}`;
+            } else if (pos.sheet && pos.row && pos.col) {
+                return `工作表: ${pos.sheet}, 行: ${pos.row}, 列: ${pos.col}`;
+            } else if (pos.page) {
+                return `页码: ${pos.page}`;
+            }
+            return '位置信息';
+        }
+
+        // 模拟切分结果（实际项目中应该调用真实的API）
+        async function simulateChunkingResults(file) {
+            // 模拟不同文件类型的切分结果
+            const fileType = getFileType(file.name);
+            let chunks = [];
+
+            if (fileType === 'Word文档') {
+                chunks = simulateWordChunks();
+            } else if (fileType === 'Excel表格') {
+                chunks = simulateExcelChunks();
+            } else if (fileType === 'PowerPoint演示') {
+                chunks = simulatePowerPointChunks();
+            } else if (fileType === '文本文档') {
+                chunks = simulateTextChunks();
+            }
+
+            currentChunks = chunks;
+            displayChunkingResults(chunks);
+        }
+
+        // 模拟Word文档切分
+        function simulateWordChunks() {
+            return [
+                {
+                    index: 1,
+                    content: "第一章 引言\n\n本章介绍了项目的基本背景和目标。我们致力于开发一个智能的知识管理系统，通过先进的自然语言处理技术，实现对各种文档格式的智能理解和分析。",
+                    positions: [
+                        { text: "第一章 引言", bbox: [50, 50, 200, 80], page: 1 },
+                        { text: "本章介绍了项目的基本背景和目标", bbox: [50, 100, 400, 130], page: 1 }
+                    ],
+                    metadata: { page_num: 1, document_type: "文档" }
+                },
+                {
+                    index: 2,
+                    content: "项目的主要目标包括：\n1. 支持多种文档格式的解析\n2. 实现智能的文本切分\n3. 提供精确的定位信息\n4. 支持语义搜索和问答",
+                    positions: [
+                        { text: "项目的主要目标包括：", bbox: [50, 150, 300, 180], page: 1 },
+                        { text: "1. 支持多种文档格式的解析", bbox: [70, 200, 350, 230], page: 1 }
+                    ],
+                    metadata: { page_num: 1, document_type: "文档" }
+                }
+            ];
+        }
+
+        // 模拟Excel表格切分
+        function simulateExcelChunks() {
+            return [
+                {
+                    index: 1,
+                    content: "产品名称\t单价\t数量\t总价\n笔记本电脑\t5999\t2\t11998\n显示器\t899\t5\t4495\n键盘\t199\t10\t1990",
+                    positions: [
+                        { text: "产品名称", bbox: [50, 50, 150, 80], sheet: "销售数据", row: 1, col: 1 },
+                        { text: "单价", bbox: [160, 50, 220, 80], sheet: "销售数据", row: 1, col: 2 }
+                    ],
+                    metadata: { page_num: 1, document_type: "表格", sheet_name: "销售数据" }
+                },
+                {
+                    index: 2,
+                    content: "数据分析：\n本月销售额总计：18483元\n主要产品：笔记本电脑\n销售策略：批量采购优惠",
+                    positions: [
+                        { text: "数据分析：", bbox: [50, 200, 150, 230], sheet: "销售数据", row: 5, col: 1 },
+                        { text: "本月销售额总计：18483元", bbox: [50, 250, 300, 280], sheet: "销售数据", row: 6, col: 1 }
+                    ],
+                    metadata: { page_num: 1, document_type: "表格", sheet_name: "销售数据" }
+                }
+            ];
+        }
+
+        // 模拟PowerPoint演示切分
+        function simulatePowerPointChunks() {
+            return [
+                {
+                    index: 1,
+                    content: "幻灯片1：项目概述\n\n• 智能知识管理系统\n• 多格式文档支持\n• 智能切分与定位\n• 语义搜索能力",
+                    positions: [
+                        { text: "幻灯片1：项目概述", bbox: [100, 100, 400, 140], page: 1 },
+                        { text: "• 智能知识管理系统", bbox: [120, 180, 380, 210], page: 1 }
+                    ],
+                    metadata: { page_num: 1, document_type: "演示文稿" }
+                },
+                {
+                    index: 2,
+                    content: "幻灯片2：技术架构\n\n• PyMuPDF Pro 文档解析\n• LangChain 智能切分\n• Elasticsearch 向量存储\n• 极客智坊 AI 接口",
+                    positions: [
+                        { text: "幻灯片2：技术架构", bbox: [100, 100, 400, 140], page: 2 },
+                        { text: "• PyMuPDF Pro 文档解析", bbox: [120, 180, 380, 210], page: 2 }
+                    ],
+                    metadata: { page_num: 2, document_type: "演示文稿" }
+                }
+            ];
+        }
+
+        // 模拟文本文档切分
+        function simulateTextChunks() {
+            return [
+                {
+                    index: 1,
+                    content: "第一段：\n这是一个示例文本文档，用于演示智能切分功能。文档包含了多个段落，每个段落都有不同的主题和内容。",
+                    positions: [
+                        { text: "第一段：", line_no: 1, char_start: 0, char_end: 4 },
+                        { text: "这是一个示例文本文档，用于演示智能切分功能。", line_no: 2, char_start: 5, char_end: 35 }
+                    ],
+                    metadata: { page_num: 1, document_type: "文本" }
+                },
+                {
+                    index: 2,
+                    content: "第二段：\n智能切分算法能够识别段落的边界，保持语义的完整性。同时，它还保留了每个文本块在原文中的精确位置信息。",
+                    positions: [
+                        { text: "第二段：", line_no: 4, char_start: 36, char_end: 40 },
+                        { text: "智能切分算法能够识别段落的边界，保持语义的完整性。", line_no: 5, char_start: 41, char_end: 71 }
+                    ],
+                    metadata: { page_num: 1, document_type: "文本" }
+                }
+            ];
+        }
+
+        // 显示切分结果
+        function displayChunkingResults(chunks) {
+            const resultsDiv = document.getElementById('chunkingResults');
+            const statsDiv = document.getElementById('totalChunks');
+            const avgSizeDiv = document.getElementById('avgChunkSize');
+            const positionsDiv = document.getElementById('totalPositions');
+            const typeDiv = document.getElementById('documentType');
+            const containerDiv = document.getElementById('chunksContainer');
+
+            // 更新统计信息
+            statsDiv.textContent = chunks.length;
+            const avgSize = Math.round(chunks.reduce((sum, chunk) => sum + chunk.content.length, 0) / chunks.length);
+            avgSizeDiv.textContent = avgSize;
+            
+            const totalPositions = chunks.reduce((sum, chunk) => sum + chunk.positions.length, 0);
+            positionsDiv.textContent = totalPositions;
+            
+            typeDiv.textContent = chunks[0]?.metadata?.document_type || '未知';
+
+            // 生成切分块展示
+            containerDiv.innerHTML = chunks.map(chunk => `
+                <div class="chunk-card" data-chunk-index="${chunk.index}">
+                    <div class="chunk-header">
+                        <span class="chunk-index">块 ${chunk.index}</span>
+                        <span class="chunk-meta">
+                            第${chunk.metadata.page_num}页 | 
+                            ${chunk.metadata.document_type}
+                            ${chunk.metadata.sheet_name ? `| ${chunk.metadata.sheet_name}` : ''}
+                        </span>
+                    </div>
+                    <div class="chunk-content">${chunk.content}</div>
+                    <div class="chunk-positions">
+                        <strong>📍 定位信息 (${chunk.positions.length}个):</strong>
+                        ${chunk.positions.map(pos => `
+                            <div class="position-item">
+                                <div class="position-text">${pos.text}</div>
+                                <div class="position-coords">
+                                    ${formatPositionInfo(pos)}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            resultsDiv.style.display = 'block';
+        }
+
+        // 格式化位置信息
+        function formatPositionInfo(pos) {
+            if (pos.bbox) {
+                return `坐标: [${pos.bbox.join(', ')}]`;
+            } else if (pos.line_no) {
+                return `行号: ${pos.line_no}, 字符范围: ${pos.char_start}-${pos.char_end}`;
+            } else if (pos.sheet && pos.row && pos.col) {
+                return `工作表: ${pos.sheet}, 行: ${pos.row}, 列: ${pos.col}`;
+            }
+            return '位置信息';
+        }
+
+        // 搜索功能
+        async function searchInChunks() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            if (!searchTerm) return;
+
+            try {
+                showLoading(true);
+                
+                // 调用真实的搜索API
+                const response = await fetch('http://localhost:8050/api/chunks/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: searchTerm,
+                        knowledge_id: 1  // 默认知识库ID
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('搜索请求失败');
+                }
+
+                const searchData = await response.json();
+                if (!searchData.success) {
+                    throw new Error(searchData.error || '搜索失败');
+                }
+
+                // 移除之前的高亮
+                document.querySelectorAll('.chunk-card').forEach(card => {
+                    card.classList.remove('chunk-highlight');
+                });
+
+                // 高亮匹配的切分块
+                searchData.data.forEach(result => {
+                    const card = document.querySelector(`[data-chunk-index="${result.index}"]`);
+                    if (card) {
+                        card.classList.add('chunk-highlight');
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                });
+
+                // 显示搜索结果
+                if (searchData.data.length > 0) {
+                    showSuccessMessage(`找到 ${searchData.data.length} 个匹配的切分块`);
+                    
+                    // 显示搜索结果摘要
+                    displaySearchResults(searchData.data);
+                } else {
+                    showErrorMessage('未找到匹配的内容');
+                }
+
+            } catch (error) {
+                showErrorMessage(`搜索失败: ${error.message}`);
+                
+                // 如果API搜索失败，回退到本地搜索
+                performLocalSearch(searchTerm);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 本地搜索（回退方案）
+        function performLocalSearch(searchTerm) {
+            // 移除之前的高亮
+            document.querySelectorAll('.chunk-card').forEach(card => {
+                card.classList.remove('chunk-highlight');
+            });
+
+            // 搜索匹配的切分块
+            const matchingChunks = currentChunks.filter(chunk => 
+                chunk.content.toLowerCase().includes(searchTerm)
+            );
+
+            // 高亮匹配的切分块
+            matchingChunks.forEach(chunk => {
+                const card = document.querySelector(`[data-chunk-index="${chunk.index}"]`);
+                if (card) {
+                    card.classList.add('chunk-highlight');
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            });
+
+            // 显示搜索结果
+            if (matchingChunks.length > 0) {
+                showSuccessMessage(`本地搜索找到 ${matchingChunks.length} 个匹配的切分块`);
+            } else {
+                showErrorMessage('未找到匹配的内容');
+            }
+        }
+
+        // 显示搜索结果摘要
+        function displaySearchResults(results) {
+            // 创建搜索结果摘要区域
+            let summaryDiv = document.getElementById('searchSummary');
+            if (!summaryDiv) {
+                summaryDiv = document.createElement('div');
+                summaryDiv.id = 'searchSummary';
+                summaryDiv.className = 'search-summary';
+                summaryDiv.innerHTML = `
+                    <h3>🔍 搜索结果摘要</h3>
+                    <div class="search-results-list"></div>
+                `;
+                
+                // 插入到搜索区域下方
+                const searchSection = document.querySelector('.search-section');
+                searchSection.appendChild(summaryDiv);
+            }
+
+            const resultsList = summaryDiv.querySelector('.search-results-list');
+            resultsList.innerHTML = results.map(result => `
+                <div class="search-result-item">
+                    <div class="result-header">
+                        <span class="result-index">块 ${result.index}</span>
+                        <span class="result-score">相关性: ${result.score.toFixed(2)}</span>
+                    </div>
+                    <div class="result-content">${result.highlighted_content || result.content}</div>
+                    <div class="result-meta">
+                        第${result.metadata.page_num}页 | ${result.metadata.document_type}
+                    </div>
+                </div>
+            `).join('');
+
+            summaryDiv.style.display = 'block';
+        }
+
+        // 显示/隐藏加载状态
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        // 显示错误消息
+        function showErrorMessage(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => errorDiv.style.display = 'none', 5000);
+        }
+
+        // 显示成功消息
+        function showSuccessMessage(message) {
+            const successDiv = document.getElementById('successMessage');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => successDiv.style.display = 'none', 5000);
+        }
+
+        // 隐藏所有消息
+        function hideMessages() {
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+
+        // 回车搜索
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchInChunks();
+            }
+        });
+    </script>
+</body>
+</html>

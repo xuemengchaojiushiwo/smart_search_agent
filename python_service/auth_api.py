@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import os
+import logging
+from datetime import datetime, timedelta
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from jose import jwt
+
+try:
+    import ldap3  # type: ignore
+except Exception:  # optional
+    ldap3 = None
+
+
+logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+
+app = FastAPI(title="Auth Service", version="1.0.0")
+
+
+class LoginBody(BaseModel):
+    username: str
+    password: str
+
+
+JWT_SECRET = os.getenv("AUTH_JWT_SECRET", "dev-secret-change-me")
+JWT_EXPIRE_MINUTES = int(os.getenv("AUTH_JWT_EXPIRE_MINUTES", "720"))
+
+LDAP_ENABLED = os.getenv("LDAP_ENABLED", "false").lower() == "true"
+LDAP_HOST = os.getenv("LDAP_HOST", "")
+LDAP_PORT = int(os.getenv("LDAP_PORT", "389"))
+LDAP_BASE_DN = os.getenv("LDAP_BASE_DN", "")
+LDAP_USER_SEARCH_FMT = os.getenv("LDAP_USER_SEARCH_FMT", "uid={username}," + LDAP_BASE_DN)
+
+
+def generate_token(payload: dict) -> str:
+    expire = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE_MINUTES)
+    to_encode = {**payload, "exp": expire}
+    return jwt.encode(to_encode, JWT_SECRET, algorithm="HS256")
+
+
+def _decode_attr(value):
+    if value is None:
+        return None
+    if isinstance(value, (bytes, bytearray)):
+        try:
+            return bytes(value).decode("utf-8")
+        except Exception:
+            try:
+                return bytes(value).decode("gbk")
+            except Exception:
+                return bytes(value).decode("latin1", errors="replace")
+    if isinstance(value, list):
+        return [_decode_attr(v) for v in value]
+    return value
+
+
+def ldap_auth(username: str, password: str) -> Optional[dict]:
+    if not ldap3:
+        raise HTTPException(status_code=500, detail="ldap3 not installed")
+    if not (LDAP_HOST and LDAP_BASE_DN):
+        raise HTTPException(status_code=500, detail="LDAP config missing")
+
+    user_dn = LDAP_USER_SEARCH_FMT.format(username=username)
+    server = ldap3.Server(LDAP_HOST, port=LDAP_PORT, get_info=ldap3.NONE)
+    conn = ldap3.Connection(server, user=user_dn, password=password, auto_bind=False)
+    if not conn.bind():
+        return None
+
+    # Try read attributes
+    attrs = ["displayName", "mail", "jpegPhoto", "title", "employeeNumber", "name", "hsbc-ad-WorkRole"]
+    try:
+        conn.search(LDAP_BASE_DN, f"(uid={username})", attributes=attrs)
+        entry = conn.entries[0] if conn.entries else None
+    except Exception:
+        entry = None
+    finally:
+        conn.unbind()
+
+    profile = {
+        "username": username,
+        "email": None,
+        "display_name": None,
+        "profile_picture": None,
+        "role": None,
+        "system_role": "USER",
+        "raw": None,
+    }
+    if entry:
+        # raw-like dict resembling your historical output
+        raw = {
+            "dn": str(getattr(entry, "entry_dn", "")),
+            "attributes": {a: _decode_attr(getattr(entry, a, None)) for a in attrs},
+        }
+        profile["raw"] = raw
+        profile["display_name"] = _decode_attr(getattr(entry, "displayName", "") or "") or None
+        profile["email"] = _decode_attr(getattr(entry, "mail", "") or "") or None
+        # 优先 hsbc-ad-WorkRole / title 作为角色信息
+        role_val = _decode_attr(getattr(entry, "hsbc-ad-WorkRole", "") or "") or _decode_attr(getattr(entry, "title", "") or "")
+        profile["role"] = role_val or None
+    return profile
+
+
+def mock_auth(username: str, password: str) -> dict:
+    # Simple mock strategy. Accept any non-empty pair.
+    if not username or not password:
+        return None
+    return {
+        "username": username,
+        "email": f"{username}@example.com",
+        "display_name": username.capitalize(),
+        "profile_picture": None,
+        "role": "USER",
+        "system_role": "USER",
+    }
+
+
+@app.post("/auth/login")
+def login(body: LoginBody):
+    username = body.username.strip()
+    password = body.password
+
+    user = None
+    if LDAP_ENABLED:
+        try:
+            user = ldap_auth(username, password)
+        except HTTPException as e:
+            # fall back to mock if configured off
+            logging.error(f"LDAP error: {e.detail}")
+            raise
+        except Exception as e:
+            logging.error(f"LDAP unexpected error: {e}")
+            raise HTTPException(status_code=500, detail="LDAP unavailable")
+    else:
+        user = mock_auth(username, password)
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = generate_token({
+        "sub": username,
+        "display_name": user.get("display_name"),
+        "system_role": user.get("system_role", "USER"),
+    })
+
+    return {
+        "token": token,
+        "user": {
+            "username": user.get("username"),
+            "email": user.get("email"),
+            "display_name": user.get("display_name"),
+            "profile_picture": user.get("profile_picture"),
+            "role": user.get("role"),
+            "system_role": user.get("system_role"),
+        }
+    }
+
+
+@app.post("/ldap/verify")
+def ldap_verify(body: LoginBody):
+    """仅做 LDAP 校验与信息返回，Java 侧自行做 token/user 管理。"""
+    username = body.username.strip()
+    password = body.password
+
+    if not LDAP_ENABLED:
+        # mock 分支，便于联调
+        user = mock_auth(username, password)
+        return {"ok": True, "source": "mock", "user": user, "raw": {}}
+
+    profile = ldap_auth(username, password)
+    if not profile:
+        raise HTTPException(status_code=401, detail="LDAP bind failed")
+    return {"ok": True, "source": "ldap", "user": {
+        "username": profile.get("username"),
+        "email": profile.get("email"),
+        "display_name": profile.get("display_name"),
+        "role": profile.get("role"),
+        "system_role": profile.get("system_role"),
+    }, "raw": profile.get("raw")}
+
+
+# Run: uvicorn python_service.auth_api:app --reload --port 7010
+
+
